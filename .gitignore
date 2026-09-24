@@ -5,6 +5,7 @@ CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
+!/Makefile
 CMakeUserPresets.json
 CTestTestfile.cmake
 Testing/
@@ -25,3 +26,13 @@ src/.*.swp
 #Work folders should only contain the examples scripts
 work/
 __pycache__
+
+# Keep runtime directories, but not their generated contents.
+/output/*
+!/output/.gitkeep
+/result/*
+!/result/.gitkeep
+/script/*
+!/script/.gitkeep
+/temp/*
+!/temp/.gitkeep

@@ -6,6 +6,9 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <cmath>
+#include <limits>
+#include <stdexcept>
 #include <sstream>
 #include <string>
 #include <chrono>
@@ -660,7 +663,7 @@ void ReadWrite::WriteTBME_Navratil( std::string filename, Operator& Hbare)
 
 
 
-/// Decide if the file is gzipped or ascii, create a stream, then call ReadBareTBME_Darmstadt_from_stream().
+/// Read text/gzip, NuHamil headerless float64 .me2j.bin, or legacy binary TBMEs.
 void ReadWrite::ReadBareTBME_Darmstadt( std::string filename, Operator& Hbare, int emax, int E2max, int lmax)
 {
 
@@ -683,6 +686,46 @@ void ReadWrite::ReadBareTBME_Darmstadt( std::string filename, Operator& Hbare, i
     zipstream.push(boost::iostreams::gzip_decompressor());
     zipstream.push(infile);
     ReadBareTBME_Darmstadt_from_stream(zipstream, Hbare,  emax, E2max, lmax);
+  }
+  else if (filename.size() >= 9 && filename.compare(filename.size() - 9, 9, ".me2j.bin") == 0)
+  {
+    std::ifstream infile(filename, std::ios::binary | std::ios::ate);
+    if ( !infile.good() )
+    {
+      throw std::runtime_error("Cannot open NuHamil me2j.bin: " + filename);
+    }
+
+
+    // NuHamil writes four real(8) values per entry, without a header or
+    // Fortran record markers. Stream only the portion needed by the model
+    // space instead of allocating a vector for the entire interaction file.
+    const std::streamoff nbytes = infile.tellg();
+    if (nbytes <= 0 || nbytes % (4 * sizeof(double)) != 0)
+      throw std::runtime_error("Invalid NuHamil me2j.bin size (expected groups of four float64 values): " + filename);
+    infile.seekg(0, std::ios::beg);
+    class NuHamilStream
+    {
+      std::ifstream& input;
+      size_t count = 0;
+    public:
+      explicit NuHamilStream(std::ifstream& stream) : input(stream) {}
+      bool good() const { return input.good(); }
+      void getline(char[], int) {} // Headerless binary: do not skip data.
+      NuHamilStream& operator>>(float& value)
+      {
+        double raw;
+        if (!input.read(reinterpret_cast<char*>(&raw), sizeof(raw)))
+          throw std::runtime_error("Truncated NuHamil me2j.bin at element " + std::to_string(count));
+        ++count;
+        if (!std::isfinite(raw) || std::abs(raw) > std::numeric_limits<float>::max())
+          throw std::runtime_error("Invalid NuHamil me2j.bin value at element " + std::to_string(count-1));
+        value = static_cast<float>(raw); // Shared me2j parser uses float TBMEs.
+        return *this;
+      }
+    } binstream(infile);
+    std::cout << "NuHamil me2j.bin: headerless float64, n_elem = "
+              << nbytes / sizeof(double) << std::endl;
+    ReadBareTBME_Darmstadt_from_stream(binstream, Hbare, emax, E2max, lmax);
   }
   else if (filename.substr( filename.find_last_of(".")) == ".bin")
   {
@@ -6385,7 +6428,6 @@ void ReadWrite::CopyFile(std::string filename1, std::string filename2)
 //    f2 << f1.rdbuf ();
 //  } 
 }
-
 
 
 
