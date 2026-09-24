@@ -2,7 +2,7 @@ import subprocess
 from pathlib import Path
 
 # * This script is used to commit changes to a git repository.
-message = "my personal update"
+message = "another update for safety"
 
 
 repo = Path(__file__).resolve().parent.parent

@@ -475,10 +475,7 @@ def main_job(args_v):
     imsrgsolver.UpdateEta()
     eta_norm = imsrgsolver.GetEta().Norm()
     if not eta_norm < eta_criterion:
-        raise RuntimeError(
-            f"Core decoupling did not converge at s={imsrgsolver.GetS():.6g}: "
-            f"||eta||={eta_norm:.6g}, required < {eta_criterion:.6g}"
-        )
+        raise RuntimeError(f"Core decoupling did not converge at s={imsrgsolver.GetS():.6g}: " f"||eta||={eta_norm:.6g}, required < {eta_criterion:.6g}")
 
     ### Now set the generator for the second stage to decouple the valence space
     if valence_space == reference:
@@ -489,6 +486,8 @@ def main_job(args_v):
             Commutator.FactorizedDoubleCommutator.SetUse_2b_Intermediates(True)
             Hs = imsrgsolver.Transform(HNO)
         if perturbative_triples:
+            if imsrgsolver.GetNOmegaWritten() != 0:
+                raise RuntimeError("Cannot calculate perturbative triples: Omega segments have been written " "to scratch, but the current triples implementation only combines in-memory " "segments. Rerun without Omega spilling or disable perturbative_triples.")
             triples = imsrgsolver.CalculatePerturbativeTriples()
         Eimsrg = Hs.ZeroBody
         if approx == "imsrg2":
@@ -513,10 +512,7 @@ def main_job(args_v):
         imsrgsolver.UpdateEta()
         eta_norm = imsrgsolver.GetEta().Norm()
         if not eta_norm < eta_criterion:
-            raise RuntimeError(
-                f"Valence decoupling did not converge at s={imsrgsolver.GetS():.6g}: "
-                f"||eta||={eta_norm:.6g}, required < {eta_criterion:.6g}"
-            )
+            raise RuntimeError(f"Valence decoupling did not converge at s={imsrgsolver.GetS():.6g}: " f"||eta||={eta_norm:.6g}, required < {eta_criterion:.6g}")
 
         ### Hs is the IMSRG-evolved Hamiltonian
         Hs = Operator(imsrgsolver.GetH_s())
@@ -528,6 +524,8 @@ def main_job(args_v):
             Hs = imsrgsolver.Transform(HNO)
 
         if perturbative_triples:
+            if imsrgsolver.GetNOmegaWritten() != 0:
+                raise RuntimeError("Cannot calculate perturbative triples: Omega segments have been written " "to scratch, but the current triples implementation only combines in-memory " "segments. Rerun without Omega spilling or disable perturbative_triples.")
             triples = imsrgsolver.CalculatePerturbativeTriples()
             print("Adding triples correction  = {:.6f}".format(triples), flush=True)
             Hs.ZeroBody += triples
